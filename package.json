@@ -1,0 +1,40 @@
+{
+  "name": "api-parser-vscode",
+  "displayName": "API Parser",
+  "description": "VS Code port of IntelliJ YAML‑docs widget",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:apiParser.open"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "get-port": "^5.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4",
+    "@types/node": "^20.1.0",
+    "@types/express": "^4.17.17",
+    "@types/vscode": "^1.85.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "apiParser.open",
+        "title": "Open YAML Docs (API Parser)"
+      }
+    ]
+  },
+  "files": [
+    "out/**",
+    "resources/web/**"
+  ]
+}

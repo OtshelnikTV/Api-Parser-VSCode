@@ -1,0 +1,17 @@
+{
+  // ignore generated build errors for the Java plugin project
+  "java.configuration.excludeProjects": [
+    "Api-Parser-VSCode"
+  ],
+  // exclude the extension code from TypeScript analysis in the root workspace
+  "typescript.tsconfig": "tsconfig.json",
+  "files.exclude": {
+    "vscode-extension": true
+  },
+  "tslint.exclude": [
+    "vscode-extension/**"
+  ],
+  "typescript.validate.enable": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "java.enabled": false
+}
