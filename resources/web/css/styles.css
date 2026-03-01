@@ -1102,6 +1102,79 @@ body {
     transform: scale(0.95);
 }
 
+/* Server Controls Panel */
+.server-controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 999;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-primary);
+    border-radius: 24px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.server-controls:hover {
+    border-color: var(--accent-blue);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.server-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 4px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    color: var(--accent-green);
+    font-size: 16px;
+    line-height: 1;
+}
+
+.status-indicator.disconnected {
+    color: var(--accent-red);
+}
+
+.status-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.server-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.server-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    transform: scale(1.05);
+}
+
+.server-btn:active {
+    transform: scale(0.95);
+}
+
 /* Adjust header position when theme toggle is visible */
 .app-container {
     padding-left: 20px;

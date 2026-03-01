@@ -434,4 +434,44 @@ export class App {
 document.addEventListener('DOMContentLoaded', () => {
     const app = new App();
     app.init();
+    
+    // Initialize server controls
+    initServerControls();
 });
+
+/**
+ * Инициализация элементов управления сервером
+ */
+function initServerControls() {
+    const openInBrowserBtn = document.getElementById('open-in-browser');
+    const refreshBtn = document.getElementById('refresh-app');
+    const statusText = document.getElementById('status-text');
+    const statusIndicator = document.getElementById('status-indicator');
+    
+    // Update status display
+    function updateStatus() {
+        statusText.textContent = 'VS Code';
+        statusIndicator.className = 'status-indicator';
+    }
+    
+    // Open current page in external browser
+    openInBrowserBtn?.addEventListener('click', () => {
+        const currentUrl = window.location.href;
+        // Request VS Code to open in external browser
+        fetch('/api/open-browser', {
+            method: 'POST',
+            body: currentUrl
+        }).catch(() => {
+            // Fallback - just try to open in new window
+            window.open(currentUrl, '_blank');
+        });
+    });
+    
+    // Refresh the entire app
+    refreshBtn?.addEventListener('click', () => {
+        window.location.reload();
+    });
+    
+    // Initialize status
+    updateStatus();
+}

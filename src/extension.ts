@@ -273,52 +273,109 @@ async function startServer(context: vscode.ExtensionContext): Promise<void> {
         outputChannel.appendLine(`Workspace root: ${workspaceRoot || 'None'}`);
 
         app.get('/api/file', (req: Request, res: Response) => {
+            const rel = req.query.path as string;
+            outputChannel.appendLine(`📄 GET /api/file?path=${rel}`);
+            
             if (!workspaceRoot) {
+                outputChannel.appendLine('❌ No workspace folder');
                 return res.status(500).send('No workspace folder');
             }
-            const rel = req.query.path as string;
-            if (!rel) return res.status(400).send('path query required');
+            if (!rel) {
+                outputChannel.appendLine('❌ Missing path parameter');
+                return res.status(400).send('path query required');
+            }
+            
             const full = path.join(workspaceRoot, rel);
+            outputChannel.appendLine(`📁 Reading file: ${full}`);
+            
             fs.stat(full, (err: NodeJS.ErrnoException | null, stats: fs.Stats) => {
                 if (err || stats.isDirectory()) {
+                    outputChannel.appendLine(`❌ File not found or is directory: ${full}`);
                     return res.status(404).end();
                 }
                 fs.readFile(full, 'utf8', (err2: NodeJS.ErrnoException | null, data: string) => {
-                    if (err2) return res.status(500).end();
+                    if (err2) {
+                        outputChannel.appendLine(`❌ Error reading file: ${err2.message}`);
+                        return res.status(500).end();
+                    }
+                    outputChannel.appendLine(`✅ File read successfully: ${data.length} chars`);
                     res.type('text/plain; charset=utf-8').send(data);
                 });
             });
         });
 
         app.get('/api/exists', (req: Request, res: Response) => {
+            const rel = req.query.path as string;
+            outputChannel.appendLine(`🔍 GET /api/exists?path=${rel}`);
+            
             if (!workspaceRoot) {
+                outputChannel.appendLine('❌ No workspace folder');
                 return res.status(500).send('No workspace folder');
             }
-            const rel = req.query.path as string;
-            if (!rel) return res.status(400).send('path query required');
+            if (!rel) {
+                outputChannel.appendLine('❌ Missing path parameter');
+                return res.status(400).send('path query required');
+            }
+            
             const full = path.join(workspaceRoot, rel);
             fs.access(full, fs.constants.F_OK, (err: NodeJS.ErrnoException | null) => {
-                res.status(err ? 404 : 200).end();
+                const exists = !err;
+                outputChannel.appendLine(`${exists ? '✅' : '❌'} File ${exists ? 'exists' : 'not found'}: ${full}`);
+                res.status(exists ? 200 : 404).end();
             });
         });
 
         app.post('/api/save', (req: Request, res: Response) => {
+            const rel = req.query.path as string;
+            const content = req.body || '';
+            outputChannel.appendLine(`💾 POST /api/save?path=${rel} (${content.length} chars)`);
+            
             if (!workspaceRoot) {
+                outputChannel.appendLine('❌ No workspace folder');
                 return res.status(500).send('No workspace folder');
             }
-            const rel = req.query.path as string;
-            if (!rel) return res.status(400).send('path query required');
+            if (!rel) {
+                outputChannel.appendLine('❌ Missing path parameter');
+                return res.status(400).send('path query required');
+            }
+            
             const full = path.join(workspaceRoot, rel);
             const parent = path.dirname(full);
-            fs.access(parent, fs.constants.F_OK, (err: NodeJS.ErrnoException | null) => {
+            outputChannel.appendLine(`📁 Saving to: ${full}`);
+            
+            // Create directory if it doesn't exist
+            fs.mkdir(parent, { recursive: true }, (err: NodeJS.ErrnoException | null) => {
                 if (err) {
-                    return res.status(404).end();
+                    outputChannel.appendLine(`❌ Failed to create directory: ${err.message}`);
+                    return res.status(500).send('Failed to create directory');
                 }
-                fs.writeFile(full, req.body || '', 'utf8', (err2: NodeJS.ErrnoException | null) => {
-                    if (err2) return res.status(500).end();
-                    res.status(200).end();
+                
+                fs.writeFile(full, content, 'utf8', (err2: NodeJS.ErrnoException | null) => {
+                    if (err2) {
+                        outputChannel.appendLine(`❌ Failed to save file: ${err2.message}`);
+                        return res.status(500).send('Failed to save file');
+                    }
+                    outputChannel.appendLine(`✅ File saved successfully: ${full}`);
+                    
+                    // Show VS Code notification
+                    vscode.window.showInformationMessage(`Saved: ${path.basename(full)}`);
+                    res.status(200).send('File saved successfully');
                 });
             });
+        });
+
+        app.post('/api/open-browser', (req: Request, res: Response) => {
+            outputChannel.appendLine('🌐 POST /api/open-browser - opening in external browser');
+            
+            if (serverPort) {
+                const url = `http://localhost:${serverPort}`;
+                vscode.env.openExternal(vscode.Uri.parse(url));
+                outputChannel.appendLine(`✅ Opened ${url} in external browser`);
+                res.status(200).send('Browser opened');
+            } else {
+                outputChannel.appendLine('❌ Server not running');
+                res.status(500).send('Server not running');
+            }
         });
 
         serverPort = await getPort({ port: getPort.makeRange(3000, 3999) });
