@@ -3,11 +3,20 @@
   "displayName": "API Parser",
   "description": "VS Code port of IntelliJ YAML‑docs widget for parsing and visualizing API documentation",
   "version": "0.0.1",
-  "publisher": "api-helper",
+  "publisher": "ChikleevB",
   "categories": ["Other", "Visualization"],
   "keywords": ["yaml", "api", "documentation", "parser", "swagger", "openapi"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OtshelnikTV/Api-Parser-VSCode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OtshelnikTV/Api-Parser-VSCode/issues"
+  },
+  "homepage": "https://github.com/OtshelnikTV/Api-Parser-VSCode#readme",
+  "license": "MIT",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.74.0"
   },
   "main": "./out/extension.js",
   "activationEvents": ["onView:apiParser.apiParserView"],
