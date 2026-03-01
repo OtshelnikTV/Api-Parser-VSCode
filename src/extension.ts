@@ -8,40 +8,65 @@ import * as http from 'http';
 let server: http.Server | null = null;
 let serverPort: number | null = null;
 
+// provider for the activity‑bar view
+class ApiParserViewProvider implements vscode.WebviewViewProvider {
+    // must match containerId.viewId from package.json
+    public static readonly viewType = 'apiParser.apiParserView';
+    constructor(private readonly context: vscode.ExtensionContext) {
+        console.log('ApiParserViewProvider constructor');
+    }
+
+    public async resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        context: vscode.WebviewViewResolveContext,
+        token: vscode.CancellationToken
+    ) {
+        console.log('resolveWebviewView called for', webviewView.viewType);
+        webviewView.webview.options = {
+            enableScripts: true
+        };
+
+        if (!server) {
+            await startServer(this.context);
+        }
+        if (serverPort === null) {
+            webviewView.webview.html = '<p>Server failed to start</p>';
+            return;
+        }
+        const url = `http://localhost:${serverPort}`;
+        webviewView.webview.html = getWebviewContent(url);
+    }
+}
+
+function getWebviewContent(url: string): string {
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http: https:; script-src 'unsafe-inline' 'unsafe-eval' http://localhost:${serverPort}; style-src 'unsafe-inline';"></head>
+        <body style="margin:0;padding:0;overflow:hidden">
+        <iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>
+        </body>
+        </html>
+    `;
+}
+
 export function activate(context: vscode.ExtensionContext) {
+    console.log('API Parser extension activate()');
+    console.log('activation events:', context.subscriptions.length, 'workspaceFolders', vscode.workspace.workspaceFolders);
+    console.log('registered activationEvents from manifest', vscode.extensions.getExtension('api-parser-vscode')?.packageJSON.activationEvents);
+
+    // register the sidebar view provider
     context.subscriptions.push(
-        vscode.commands.registerCommand('apiParser.open', async () => {
-            try {
-                if (!server) {
-                    await startServer(context);
-                }
-                if (serverPort === null) {
-                    vscode.window.showErrorMessage('Server failed to start');
-                    return;
-                }
-                const panel = vscode.window.createWebviewPanel(
-                    'apiParser',
-                    'YAML Docs',
-                    vscode.ViewColumn.One,
-                    {
-                        enableScripts: true,
-                        retainContextWhenHidden: true,
-                        // allow the iframe to load remote content
-                    }
-                );
-                const url = `http://localhost:${serverPort}`;
-                panel.webview.html = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http: https:; script-src 'unsafe-inline' 'unsafe-eval' http://localhost:${serverPort}; style-src 'unsafe-inline';"></head>
-                    <body style="margin:0;padding:0;overflow:hidden">
-                    <iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>
-                    </body>
-                    </html>
-                `;
-            } catch (err) {
-                vscode.window.showErrorMessage('Failed to open API Parser: ' + err);
-            }
+        vscode.window.registerWebviewViewProvider(
+            ApiParserViewProvider.viewType,  // fully qualified
+            new ApiParserViewProvider(context)
+        )
+    );
+
+    // keep a command for backwards compatibility that simply reveals the view
+    context.subscriptions.push(
+        vscode.commands.registerCommand('apiParser.open', () => {
+            return vscode.commands.executeCommand('workbench.view.extension.apiParser');
         })
     );
 }

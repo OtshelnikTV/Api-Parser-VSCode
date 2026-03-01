@@ -45,35 +45,51 @@ const express_1 = __importDefault(require("express"));
 const get_port_1 = __importDefault(require("get-port"));
 let server = null;
 let serverPort = null;
+// provider for the activity‑bar view
+class ApiParserViewProvider {
+    constructor(context) {
+        this.context = context;
+        console.log('ApiParserViewProvider constructor');
+    }
+    async resolveWebviewView(webviewView, context, token) {
+        console.log('resolveWebviewView called for', webviewView.viewType);
+        webviewView.webview.options = {
+            enableScripts: true
+        };
+        if (!server) {
+            await startServer(this.context);
+        }
+        if (serverPort === null) {
+            webviewView.webview.html = '<p>Server failed to start</p>';
+            return;
+        }
+        const url = `http://localhost:${serverPort}`;
+        webviewView.webview.html = getWebviewContent(url);
+    }
+}
+// must match containerId.viewId from package.json
+ApiParserViewProvider.viewType = 'apiParser.apiParserView';
+function getWebviewContent(url) {
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http: https:; script-src 'unsafe-inline' 'unsafe-eval' http://localhost:${serverPort}; style-src 'unsafe-inline';"></head>
+        <body style="margin:0;padding:0;overflow:hidden">
+        <iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>
+        </body>
+        </html>
+    `;
+}
 function activate(context) {
-    context.subscriptions.push(vscode.commands.registerCommand('apiParser.open', async () => {
-        try {
-            if (!server) {
-                await startServer(context);
-            }
-            if (serverPort === null) {
-                vscode.window.showErrorMessage('Server failed to start');
-                return;
-            }
-            const panel = vscode.window.createWebviewPanel('apiParser', 'YAML Docs', vscode.ViewColumn.One, {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-                // allow the iframe to load remote content
-            });
-            const url = `http://localhost:${serverPort}`;
-            panel.webview.html = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http: https:; script-src 'unsafe-inline' 'unsafe-eval' http://localhost:${serverPort}; style-src 'unsafe-inline';"></head>
-                    <body style="margin:0;padding:0;overflow:hidden">
-                    <iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>
-                    </body>
-                    </html>
-                `;
-        }
-        catch (err) {
-            vscode.window.showErrorMessage('Failed to open API Parser: ' + err);
-        }
+    console.log('API Parser extension activate()');
+    console.log('activation events:', context.subscriptions.length, 'workspaceFolders', vscode.workspace.workspaceFolders);
+    console.log('registered activationEvents from manifest', vscode.extensions.getExtension('api-parser-vscode')?.packageJSON.activationEvents);
+    // register the sidebar view provider
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider(ApiParserViewProvider.viewType, // fully qualified
+    new ApiParserViewProvider(context)));
+    // keep a command for backwards compatibility that simply reveals the view
+    context.subscriptions.push(vscode.commands.registerCommand('apiParser.open', () => {
+        return vscode.commands.executeCommand('workbench.view.extension.apiParser');
     }));
 }
 function deactivate() {

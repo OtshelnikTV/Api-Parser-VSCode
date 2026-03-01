@@ -1,15 +1,16 @@
 {
   "name": "api-parser-vscode",
   "displayName": "API Parser",
-  "description": "VS Code port of IntelliJ YAML‑docs widget",
+  "description": "VS Code port of IntelliJ YAML‑docs widget for parsing and visualizing API documentation",
   "version": "0.0.1",
+  "publisher": "your-publisher-name",
+  "categories": ["Other", "Visualization"],
+  "keywords": ["yaml", "api", "documentation", "parser", "swagger", "openapi"],
   "engines": {
     "vscode": "^1.85.0"
   },
   "main": "./out/extension.js",
-  "activationEvents": [
-    "onCommand:apiParser.open"
-  ],
+  "activationEvents": ["onStartupFinished"],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -31,7 +32,25 @@
         "command": "apiParser.open",
         "title": "Open YAML Docs (API Parser)"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "apiParser",
+          "title": "API Parser",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "apiParser": [
+        {
+          "id": "apiParser.apiParserView",
+          "name": "YAML Docs",
+          "icon": "resources/icon.svg"   
+        }
+      ]
+    }
   },
   "files": [
     "out/**",
