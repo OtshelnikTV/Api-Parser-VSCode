@@ -199,7 +199,7 @@ function getErrorContent(message: string): string {
 export function activate(context: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel('API Parser');
     outputChannel.appendLine('API Parser extension activating...');
-    // outputChannel.show(); // Don't force show output panel
+    outputChannel.show(); // Force show output panel for debugging
     
     console.log('API Parser extension activate()');
     console.log('activation events:', context.subscriptions.length, 'workspaceFolders', vscode.workspace.workspaceFolders);

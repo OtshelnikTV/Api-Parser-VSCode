@@ -19,12 +19,28 @@ export class FileService {
     async getFileContent(path) {
         const url = '/api/file?path=' + encodeURIComponent(path);
         console.log('[FileService] fetching', url);
-        const res = await fetch(url);
-        if (!res.ok) {
-            console.warn('[FileService] failed to fetch', url, res.status);
-            return null;
+        
+        try {
+            // Add timeout to prevent infinite loading
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!res.ok) {
+                console.warn('[FileService] failed to fetch', url, res.status);
+                return null;
+            }
+            return await res.text();
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('[FileService] Request timeout:', url);
+                throw new Error(`Таймаут загрузки файла: ${path}`);
+            }
+            console.error('[FileService] Fetch error:', error);
+            throw error;
         }
-        return await res.text();
     }
 
     /**
@@ -40,8 +56,10 @@ export class FileService {
      * @param {FileList=} files
      */
     async discoverProjects(files) {
+        console.log('[FileService] discoverProjects called, files:', files);
         if (files && files.length > 0) {
             // старый режим - сканирование локальной папки
+            console.log('[FileService] Local mode - scanning files');
             this.allFiles = Array.from(files);
             const projects = [];
             const projectMap = new Map();
@@ -73,7 +91,9 @@ export class FileService {
             return Array.from(projectMap.values());
         } else {
             // прокси-режим: получить redocly.yaml и распарсить проекты
+            console.log('[FileService] Proxy mode - fetching redocly.yaml');
             const yaml = await this.getFileContent('redocly.yaml');
+            console.log('[FileService] redocly.yaml content length:', yaml ? yaml.length : 'null');
             if (!yaml) {
                 throw new Error('redocly.yaml не найден в проекте');
             }

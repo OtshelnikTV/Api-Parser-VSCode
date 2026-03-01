@@ -13,6 +13,8 @@ import { LoadingOverlay } from './utils/LoadingOverlay.js';
 import { NotificationService } from './utils/NotificationService.js';
 import themeSwitcher from './utils/ThemeSwitcher.js';
 
+console.log('[API Parser] app.js module loaded, all imports successful');
+
 /**
  * Главный класс приложения - координирует работу всех компонентов
  */
@@ -432,11 +434,19 @@ export class App {
 
 // Запуск приложения при загрузке DOM
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new App();
-    app.init();
-    
-    // Initialize server controls
-    initServerControls();
+    console.log('[API Parser] DOMContentLoaded event fired');
+    try {
+        const app = new App();
+        console.log('[API Parser] App instance created');
+        app.init();
+        console.log('[API Parser] App initialized');
+        
+        // Initialize server controls
+        initServerControls();
+        console.log('[API Parser] Server controls initialized');
+    } catch (error) {
+        console.error('[API Parser] Error during initialization:', error);
+    }
 });
 
 /**

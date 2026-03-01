@@ -2,7 +2,7 @@
   "name": "api-parser-vscode",
   "displayName": "API Parser",
   "description": "VS Code port of IntelliJ YAML‑docs widget for parsing and visualizing API documentation",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "ChikleevB",
   "categories": ["Other", "Visualization"],
   "keywords": ["yaml", "api", "documentation", "parser", "swagger", "openapi"],
@@ -18,8 +18,11 @@
   "engines": {
     "vscode": "^1.74.0"
   },
+  "extensionKind": [
+    "workspace"
+  ],
   "main": "./out/extension.js",
-  "activationEvents": ["onView:apiParser.apiParserView"],
+  "activationEvents": ["*"],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -42,18 +45,8 @@
         "title": "Open YAML Docs (API Parser)"
       },
       {
-        "command": "apiParser.test",
-        "title": "Test API Parser View",
-        "category": "API Parser"
-      },
-      {
-        "command": "apiParser.testWebview",
-        "title": "Test WebView (No Server)",
-        "category": "API Parser"
-      },
-      {
-        "command": "apiParser.openInBrowser",
-        "title": "Open Server in Browser",
+        "command": "apiParser.forceActivate",
+        "title": "Force Activate & Show Logs",
         "category": "API Parser"
       }
     ],
@@ -76,16 +69,6 @@
           "type": "webview"
         }
       ]
-    },
-    "viewsWelcome": [
-      {
-        "view": "apiParser.apiParserView",
-        "contents": "Welcome to API Parser! 🎉\n[Test WebView](command:apiParser.testWebview)\n[Open API Parser](command:apiParser.open)"
-      }
-    ]
-  },
-  "files": [
-    "out/**",
-    "resources/web/**"
-  ]
+    }
+  }
 }

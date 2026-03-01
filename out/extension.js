@@ -60,17 +60,31 @@ class ApiParserViewProvider {
         outputChannel.appendLine(`🔍 resolveWebviewView called for viewType: ${webviewView.viewType}`);
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [this.context.extensionUri]
+            localResourceRoots: [
+                this.context.extensionUri,
+                vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'web')
+            ]
         };
         outputChannel.appendLine('✅ Webview options set');
         try {
+            // Wait for server to be ready (up to 5 seconds)
+            let attempts = 0;
+            while (!server && attempts < 50) {
+                outputChannel.appendLine(`⏳ Waiting for server to start... (attempt ${attempts + 1}/50)`);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
             if (!server) {
-                outputChannel.appendLine('🚀 Starting server for the first time...');
+                outputChannel.appendLine('❌ Server still not started after waiting, attempting to start now...');
                 await startServer(this.context);
+                outputChannel.appendLine(`✅ Server started on port ${serverPort}`);
+            }
+            else {
+                outputChannel.appendLine(`✅ Server already running on port ${serverPort}`);
             }
             if (serverPort === null) {
                 outputChannel.appendLine('❌ Server port is null, showing error');
-                webviewView.webview.html = getErrorContent('Server failed to start');
+                webviewView.webview.html = getErrorContent('Server failed to start - port is null');
                 return;
             }
             const url = `http://localhost:${serverPort}`;
@@ -88,13 +102,14 @@ class ApiParserViewProvider {
 // must match containerId.viewId from package.json
 ApiParserViewProvider.viewType = 'apiParser.apiParserView';
 function getWebviewContent(url, port) {
+    outputChannel.appendLine(`🌐 Generating iframe for URL: ${url}`);
     return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http://localhost:${port} https:; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http://localhost:${port} http://127.0.0.1:${port}; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
             <title>API Parser</title>
             <style>
                 html, body {
@@ -110,10 +125,50 @@ function getWebviewContent(url, port) {
                     border: 0;
                     display: block;
                 }
+                #loading {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-family: Arial, sans-serif;
+                    color: #888;
+                    text-align: center;
+                    padding: 20px;
+                }
+                .dots { animation: blink 1.4s infinite; }
+                @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.5; } }
             </style>
         </head>
         <body>
-            <iframe src="${url}" title="API Parser Web Interface"></iframe>
+            <div id="loading">
+                <div>Загрузка<span class="dots">...</span></div>
+                <div style="font-size: 12px; margin-top: 10px; color: #666;">Server: ${url}</div>
+            </div>
+            <iframe id="app-frame" src="${url}" title="API Parser Web Interface" style="display:none;"></iframe>
+            <script>
+                console.log('[Webview] Starting to load iframe from:', '${url}');
+                const frame = document.getElementById('app-frame');
+                const loading = document.getElementById('loading');
+                
+                frame.onload = () => {
+                    console.log('[Webview] Iframe loaded successfully');
+                    loading.style.display = 'none';
+                    frame.style.display = 'block';
+                };
+                
+                frame.onerror = (e) => {
+                    console.error('[Webview] Iframe error:', e);
+                    loading.innerHTML = '<div style="color: red;">❌ Ошибка загрузки iframe</div><div style="font-size: 12px; margin-top: 10px;">Проверьте Output → API Parser</div>';
+                };
+                
+                // Fallback timeout
+                setTimeout(() => {
+                    if (loading.style.display !== 'none') {
+                        console.error('[Webview] Iframe load timeout');
+                        loading.innerHTML = '<div style="color: red;">❌ Таймаут загрузки</div><div style="font-size: 12px; margin-top: 10px;">Проверьте Output → API Parser</div><div style="font-size: 11px; margin-top: 5px; color: #888;">URL: ${url}</div>';
+                    }
+                }, 15000);
+            </script>
         </body>
         </html>
     `;
@@ -169,10 +224,18 @@ function getErrorContent(message) {
 function activate(context) {
     outputChannel = vscode.window.createOutputChannel('API Parser');
     outputChannel.appendLine('API Parser extension activating...');
-    outputChannel.show(); // Force show output panel for debugging
+    // outputChannel.show(); // Don't force show output panel
     console.log('API Parser extension activate()');
     console.log('activation events:', context.subscriptions.length, 'workspaceFolders', vscode.workspace.workspaceFolders);
     console.log('registered activationEvents from manifest', vscode.extensions.getExtension('api-parser-vscode')?.packageJSON.activationEvents);
+    // Start server immediately on activation so it's ready when view opens
+    outputChannel.appendLine('🚀 Pre-starting Express server...');
+    startServer(context).then(() => {
+        outputChannel.appendLine(`✅ Express server pre-started on port ${serverPort}`);
+    }).catch((error) => {
+        outputChannel.appendLine(`❌ Failed to pre-start server: ${error}`);
+        vscode.window.showErrorMessage(`API Parser: Failed to start server - ${error}`);
+    });
     // register the sidebar view provider
     const provider = new ApiParserViewProvider(context);
     outputChannel.appendLine(`📝 Created provider, registering viewType: '${ApiParserViewProvider.viewType}'`);
@@ -186,6 +249,36 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('apiParser.open', () => {
         outputChannel.appendLine('Opening API Parser view...');
         return vscode.commands.executeCommand('workbench.view.extension.apiParser');
+    }));
+    // Force activate and show logs command
+    context.subscriptions.push(vscode.commands.registerCommand('apiParser.forceActivate', async () => {
+        outputChannel.show();
+        outputChannel.appendLine('');
+        outputChannel.appendLine('=== FORCE ACTIVATE COMMAND ===');
+        outputChannel.appendLine(`Extension path: ${context.extensionPath}`);
+        outputChannel.appendLine(`Server running: ${server !== null}`);
+        outputChannel.appendLine(`Server port: ${serverPort}`);
+        if (!server) {
+            outputChannel.appendLine('Server not running, starting now...');
+            try {
+                await startServer(context);
+                outputChannel.appendLine(`✅ Server started on port ${serverPort}`);
+            }
+            catch (error) {
+                outputChannel.appendLine(`❌ Failed to start server: ${error}`);
+            }
+        }
+        else {
+            outputChannel.appendLine(`Server already running on port ${serverPort}`);
+        }
+        vscode.window.showInformationMessage(`API Parser: Check Output panel for logs. Server on port ${serverPort || 'not running'}`);
+        // Try to open the view
+        try {
+            await vscode.commands.executeCommand('workbench.view.extension.apiParser');
+        }
+        catch (error) {
+            outputChannel.appendLine(`❌ Failed to open view: ${error}`);
+        }
     }));
     // test command to force view resolution
     context.subscriptions.push(vscode.commands.registerCommand('apiParser.test', async () => {
@@ -233,17 +326,7 @@ function activate(context) {
     }));
     context.subscriptions.push(outputChannel);
     outputChannel.appendLine('API Parser extension activated successfully!');
-    // Auto-show view for debugging
-    setTimeout(async () => {
-        outputChannel.appendLine('🔄 Auto-opening API Parser view for testing...');
-        try {
-            await vscode.commands.executeCommand('workbench.view.extension.apiParser');
-            outputChannel.appendLine('✅ Auto-open view command executed');
-        }
-        catch (error) {
-            outputChannel.appendLine(`❌ Auto-open failed: ${error}`);
-        }
-    }, 1000);
+    outputChannel.appendLine('💡 To open API Parser, click on the icon in Activity Bar or run "Open YAML Docs" command');
 }
 function deactivate() {
     outputChannel?.appendLine('API Parser extension deactivating...');
@@ -257,15 +340,74 @@ function deactivate() {
 async function startServer(context) {
     try {
         outputChannel.appendLine('Starting Express server...');
+        outputChannel.appendLine(`Extension path: ${context.extensionPath}`);
+        outputChannel.appendLine(`Extension URI: ${context.extensionUri.toString()}`);
         const app = (0, express_1.default)();
         // static files shipped with extension
         const staticPath = path.join(context.extensionPath, 'resources', 'web');
         outputChannel.appendLine(`Static files path: ${staticPath}`);
+        outputChannel.appendLine(`Static path exists: ${fs.existsSync(staticPath)}`);
         // Check if static files exist
         if (!fs.existsSync(staticPath)) {
+            outputChannel.appendLine(`❌ Static files not found at: ${staticPath}`);
+            // Try to list what's in extension path
+            try {
+                const extensionContents = fs.readdirSync(context.extensionPath);
+                outputChannel.appendLine(`Extension path contents: ${extensionContents.join(', ')}`);
+                // Check if resources folder exists
+                const resourcesPath = path.join(context.extensionPath, 'resources');
+                if (fs.existsSync(resourcesPath)) {
+                    const resourcesContents = fs.readdirSync(resourcesPath);
+                    outputChannel.appendLine(`Resources folder contents: ${resourcesContents.join(', ')}`);
+                }
+            }
+            catch (listErr) {
+                outputChannel.appendLine(`Error listing directory: ${listErr}`);
+            }
             throw new Error(`Static files not found at: ${staticPath}`);
         }
-        app.use(express_1.default.static(staticPath));
+        // List what's actually in the static path
+        try {
+            const staticContents = fs.readdirSync(staticPath);
+            outputChannel.appendLine(`Static path contents: ${staticContents.join(', ')}`);
+        }
+        catch (listErr) {
+            outputChannel.appendLine(`Error listing static directory: ${listErr}`);
+        }
+        // Configure Express to serve static files with correct MIME types for ES6 modules
+        app.use(express_1.default.static(staticPath, {
+            setHeaders: (res, filePath) => {
+                // Ensure .js files are served with correct MIME type for ES6 modules
+                if (filePath.endsWith('.js')) {
+                    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                }
+                // Ensure .mjs files are served with correct MIME type
+                if (filePath.endsWith('.mjs')) {
+                    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                }
+                // Add CORS headers to allow loading from webview
+                res.setHeader('Access-Control-Allow-Origin', '*');
+            }
+        }));
+        // Log all requests for debugging
+        app.use((req, res, next) => {
+            const timestamp = new Date().toISOString();
+            outputChannel.appendLine(`📥 [${timestamp}] ${req.method} ${req.path}`);
+            next();
+        });
+        // Explicit route for root to ensure index.html is served
+        app.get('/', (req, res) => {
+            const indexPath = path.join(staticPath, 'index.html');
+            outputChannel.appendLine(`🏠 Serving index.html from: ${indexPath}`);
+            outputChannel.appendLine(`   File exists: ${fs.existsSync(indexPath)}`);
+            if (fs.existsSync(indexPath)) {
+                res.sendFile(indexPath);
+            }
+            else {
+                outputChannel.appendLine(`❌ index.html not found!`);
+                res.status(404).send('index.html not found');
+            }
+        });
         // parse text bodies (used for /api/save)
         app.use(express_1.default.text({ type: '*/*' }));
         const workspaceFolders = vscode.workspace.workspaceFolders;

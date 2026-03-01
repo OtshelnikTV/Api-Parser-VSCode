@@ -1,0 +1,30 @@
+# Source files
+src/**
+tsconfig.json
+
+# Git
+.git
+.gitignore
+
+# VS Code
+.vscode/**
+.vscode-test/**
+
+# Node - DON'T exclude node_modules, we need express and get-port in production!
+# node_modules/**
+
+# Build artifacts
+*.vsix
+
+# Compiled output - we keep the out/ folder
+# out/**
+
+# Development files
+*.md
+!README.md
+
+# Keep these for production:
+# - out/** (compiled TypeScript)
+# - resources/web/** (static web files)
+# - package.json
+# - LICENSE

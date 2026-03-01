@@ -100,22 +100,28 @@ export class ProjectSelectorUI {
     }
 
     async show() {
+        console.log('[ProjectSelectorUI] show() called');
         DOMHelpers.hideAllScreens();
         DOMHelpers.show('setup-project');
+        console.log('[ProjectSelectorUI] Screens updated, starting to load projects');
         // загрузить проекты с сервера
         LoadingOverlay.show('Загрузка проектов...');
         try {
+            console.log('[ProjectSelectorUI] Calling fileService.discoverProjects()');
             const projects = await this.fileService.discoverProjects();
+            console.log('[ProjectSelectorUI] Projects loaded:', projects.length);
             if (projects.length === 0) {
                 throw new Error('Не найдено ни одного проекта в redocly.yaml');
             }
             this.projectState.availableProjects = projects;
             this.displayProjects(projects);
+            console.log('[ProjectSelectorUI] Projects displayed');
         } catch (e) {
-            console.error(e);
+            console.error('[ProjectSelectorUI] Error:', e);
             NotificationService.error('Ошибка: ' + e.message);
         } finally {
             LoadingOverlay.hide();
+            console.log('[ProjectSelectorUI] Loading overlay hidden');
         }
     }
 }
