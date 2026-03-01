@@ -48,11 +48,16 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
-    min-height: 100vh;
+    height: 100%;
+    overflow-y: auto;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -61,6 +66,8 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+    min-height: 100%;
+    height: auto;
 }
 
 /* Header */

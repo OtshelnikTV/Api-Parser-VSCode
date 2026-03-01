@@ -41,6 +41,11 @@
         "command": "apiParser.testWebview",
         "title": "Test WebView (No Server)",
         "category": "API Parser"
+      },
+      {
+        "command": "apiParser.openInBrowser",
+        "title": "Open Server in Browser",
+        "category": "API Parser"
       }
     ],
     "viewsContainers": {

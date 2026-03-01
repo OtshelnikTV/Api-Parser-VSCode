@@ -96,12 +96,24 @@ function getWebviewContent(url, port) {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http://localhost:${port} https:; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline';">
             <title>API Parser</title>
+            <style>
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    height: 100%;
+                    width: 100%;
+                    overflow: hidden;
+                }
+                iframe {
+                    width: 100%;
+                    height: 100vh;
+                    border: 0;
+                    display: block;
+                }
+            </style>
         </head>
-        <body style="margin:0;padding:0;overflow:hidden">
-            <div style="padding:10px;background:#f0f0f0;">
-                <p style="margin:0;font-size:12px;color:#666;">Loading from: ${url}</p>
-            </div>
-            <iframe src="${url}" style="width:100%;height:calc(100% - 30px);border:0" title="API Parser Web Interface"></iframe>
+        <body>
+            <iframe src="${url}" title="API Parser Web Interface"></iframe>
         </body>
         </html>
     `;
@@ -196,6 +208,27 @@ function activate(context) {
         else {
             outputChannel.appendLine('❌ No WebView available. Open the API Parser panel first.');
             vscode.window.showWarningMessage('Please open the API Parser panel first, then run this test.');
+        }
+    }));
+    // open server in browser for debugging
+    context.subscriptions.push(vscode.commands.registerCommand('apiParser.openInBrowser', async () => {
+        outputChannel.appendLine('🌐 Opening server in browser...');
+        if (!server) {
+            try {
+                await startServer(context);
+            }
+            catch (error) {
+                vscode.window.showErrorMessage(`Failed to start server: ${error}`);
+                return;
+            }
+        }
+        if (serverPort) {
+            const url = `http://localhost:${serverPort}`;
+            vscode.env.openExternal(vscode.Uri.parse(url));
+            outputChannel.appendLine(`✅ Opened ${url} in browser`);
+        }
+        else {
+            vscode.window.showErrorMessage('Server is not running');
         }
     }));
     context.subscriptions.push(outputChannel);
