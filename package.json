@@ -3,14 +3,14 @@
   "displayName": "API Parser",
   "description": "VS Code port of IntelliJ YAML‑docs widget for parsing and visualizing API documentation",
   "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "publisher": "api-helper",
   "categories": ["Other", "Visualization"],
   "keywords": ["yaml", "api", "documentation", "parser", "swagger", "openapi"],
   "engines": {
     "vscode": "^1.85.0"
   },
   "main": "./out/extension.js",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": ["onView:apiParser.apiParserView"],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -31,6 +31,16 @@
       {
         "command": "apiParser.open",
         "title": "Open YAML Docs (API Parser)"
+      },
+      {
+        "command": "apiParser.test",
+        "title": "Test API Parser View",
+        "category": "API Parser"
+      },
+      {
+        "command": "apiParser.testWebview",
+        "title": "Test WebView (No Server)",
+        "category": "API Parser"
       }
     ],
     "viewsContainers": {
@@ -38,7 +48,7 @@
         {
           "id": "apiParser",
           "title": "API Parser",
-          "icon": "resources/icon.svg"
+          "icon": "$(symbol-namespace)"
         }
       ]
     },
@@ -47,10 +57,18 @@
         {
           "id": "apiParser.apiParserView",
           "name": "YAML Docs",
-          "icon": "resources/icon.svg"   
+          "icon": "$(document)",
+          "when": "true",
+          "type": "webview"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "apiParser.apiParserView",
+        "contents": "Welcome to API Parser! 🎉\n[Test WebView](command:apiParser.testWebview)\n[Open API Parser](command:apiParser.open)"
+      }
+    ]
   },
   "files": [
     "out/**",
