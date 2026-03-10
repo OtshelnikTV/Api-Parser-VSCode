@@ -57,6 +57,9 @@ export class EditorUI {
 
         // Включить авторесайз для всех полей
         DOMHelpers.enableAutoResizeForAll();
+
+        // Обновить состояние cell-filled (IDE не поддерживает CSS :has)
+        DOMHelpers.initCellFilledForAll();
         
         // Добавить обработчики на секции
         this.attachSectionHandlers();
@@ -165,12 +168,24 @@ export class EditorUI {
 
         const flat = FieldHelpers.flattenFields(fields);
 
-        // Информация о вложенных структурах
+        // Информация о вложенных/составных структурах
+        const compositeHeaders = flat.filter(f => f.isGroupHeader);
+        const isComposite = compositeHeaders.length > 0;
         const maxDepth = Math.max(...flat.map(f => f.depth), 0);
-        const hasNested = maxDepth > 0;
+        const hasNested = !isComposite && maxDepth > 0;
 
         let infoPanel = '';
-        if (hasNested) {
+        if (isComposite) {
+            const compositeType = compositeHeaders[0].compositeType;
+            const schemaNames = [...new Set(compositeHeaders.filter(f => f.refName).map(f => f.refName))];
+            const schemasLabel = schemaNames.length
+                ? `, использованы схемы: ${schemaNames.map(s => '<code>' + DOMHelpers.escape(s) + '</code>').join(', ')}`
+                : '';
+            infoPanel = `<div class="info-note" style="margin-bottom:12px;">
+                <span class="info-note-icon">🔀</span>
+                <span>Составная схема <strong>${DOMHelpers.escape(compositeType)}</strong>: ${compositeHeaders.length} вариант(а)${schemasLabel}</span>
+            </div>`;
+        } else if (hasNested) {
             const nestedCount = flat.filter(f => f.depth > 0).length;
             const schemaNames = [...new Set(flat.filter(f => f.refName).map(f => f.refName))];
             infoPanel = `<div class="info-note" style="margin-bottom:12px;">
@@ -182,6 +197,29 @@ export class EditorUI {
         let rows = '';
         for (let i = 0; i < flat.length; i++) {
             const f = flat[i];
+
+            // Заголовок варианта составной схемы (oneOf / anyOf)
+            if (f.isGroupHeader) {
+                const refBadgeGroup = f.refName
+                    ? `<span class="nested-dto-badge">${DOMHelpers.escape(f.refName)}</span>`
+                    : '';
+                const nameCell = `<div class="field-name-wrapper">
+                        <span class="composite-badge composite-badge-${f.compositeType}">${DOMHelpers.escape(f.compositeType)}</span>
+                        <span class="composite-variant-name">${DOMHelpers.escape(f.name)}</span>${refBadgeGroup}
+                    </div>`;
+                const sourceCell = showSource ? `<td class="cell-auto"><span class="cell-static">—</span></td>` : '';
+                rows += `<tr class="composite-group-header">
+                    <td class="cell-auto"><span class="cell-static">${nameCell}</span></td>
+                    <td class="cell-auto"><span class="cell-static"><code>${DOMHelpers.escape(f.compositeType)}</code></span></td>
+                    <td class="cell-auto"><span class="cell-static">—</span></td>
+                    <td class="cell-auto"><span class="cell-static">—</span></td>
+                    <td class="cell-auto"><span class="cell-static">${DOMHelpers.escape(f.description || '—')}</span></td>
+                    <td class="cell-auto"><span class="cell-static">${DOMHelpers.escape(f.example || '—')}</span></td>
+                    ${sourceCell}
+                </tr>`;
+                continue;
+            }
+
             const indentPx = f.depth * 24;
 
             // Древовидная структура
@@ -198,10 +236,18 @@ export class EditorUI {
             // Бейджи
             const refBadge = f.refName ? `<span class="nested-dto-badge">${DOMHelpers.escape(f.refName)}</span>` : '';
             const arrayBadge = f.isArray ? '<span class="array-badge">[]</span>' : '';
+            const compositeBadge = (f.compositeType && f.type !== '__group__')
+                ? `<span class="composite-badge composite-badge-${f.compositeType}">${DOMHelpers.escape(f.compositeType)}</span>`
+                : '';
 
             const nameDisplay = `<div class="field-name-wrapper" style="margin-left:${indentPx}px">${depthMarker}<code>${DOMHelpers.escape(f.name)}</code>${arrayBadge}${refBadge}</div>`;
 
             const rowClass = f.depth > 0 ? ' nested-field' : '';
+
+            // Тип: для составных полей (oneOf/anyOf) показываем бейдж вместо кода
+            const typeDisplay = (f.compositeType && f.type !== '__group__')
+                ? compositeBadge
+                : `<code>${DOMHelpers.escape(f.type)}</code>`;
 
             // Если showSource = true, добавляем столбец "Источник"
             const sourceCell = showSource ? `<td class="cell-required">
@@ -210,7 +256,7 @@ export class EditorUI {
 
             rows += `<tr class="${rowClass}">
                 <td class="cell-auto"><span class="cell-static">${nameDisplay}</span></td>
-                <td class="cell-auto"><span class="cell-static"><code>${DOMHelpers.escape(f.type)}</code></span></td>
+                <td class="cell-auto"><span class="cell-static">${typeDisplay}</span></td>
                 <td class="cell-auto"><span class="cell-static">${f.required ? '✅' : '❌'}</span></td>
                 <td class="cell-auto"><span class="cell-static">${DOMHelpers.escape(f.format || '—')}</span></td>
                 <td class="${f.description ? 'cell-auto' : 'cell-manual'}">
@@ -348,7 +394,8 @@ export class EditorUI {
                     <input type="text" class="cell-input" value="${DOMHelpers.escape(p.transform || '')}"
                         data-bind="parsedData.dependencies[${i}].inputParams[${idx}].transform" placeholder="transform">
                 </td>
-                <td style="width:40px;text-align:center;">
+                <td style="width:56px;text-align:center;white-space:nowrap;">
+                    <button class="insert-row-btn" data-action="insertInputParam" data-dep-index="${i}" data-param-index="${idx}" title="Вставить строку после">+</button>
                     <button class="delete-row-btn" data-action="removeInputParam" data-dep-index="${i}" data-param-index="${idx}">✕</button>
                 </td>
             </tr>`;
@@ -368,7 +415,8 @@ export class EditorUI {
                     <input type="text" class="cell-input" value="${DOMHelpers.escape(f.transform || '')}"
                         data-bind="parsedData.dependencies[${i}].outputFields[${idx}].transform" placeholder="transform">
                 </td>
-                <td style="width:40px;text-align:center;">
+                <td style="width:56px;text-align:center;white-space:nowrap;">
+                    <button class="insert-row-btn" data-action="insertOutputField" data-dep-index="${i}" data-field-index="${idx}" title="Вставить строку после">+</button>
                     <button class="delete-row-btn" data-action="removeOutputField" data-dep-index="${i}" data-field-index="${idx}">✕</button>
                 </td>
             </tr>`;
@@ -407,8 +455,9 @@ export class EditorUI {
             fieldsHTML += `
                 <div class="kv-label">Метод</div>
                 <div class="kv-value cell-required">
-                    <input type="text" class="cell-input" value="${DOMHelpers.escape(dep.method || 'GET')}"
-                        data-bind="parsedData.dependencies[${i}].method" placeholder="GET">
+                    <select class="cell-input" data-bind="parsedData.dependencies[${i}].method">
+                        ${['GET', 'POST', 'PUT', 'DELETE'].map(m => `<option value="${m}" ${(dep.method || 'GET').toUpperCase() === m ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select>
                 </div>
                 <div class="kv-label">URL</div>
                 <div class="kv-value cell-required">
@@ -436,7 +485,6 @@ export class EditorUI {
         }
         // Для ffl_table только Имя и Описание (уже добавлены)
 
-        // --- Остальной HTML без изменений ---
         return `<div class="dep-card" id="dep-${i}">
             <div class="dep-card-header">
                 <span class="dep-card-title">${DOMHelpers.escape(dep.name) || `Зависимость #${i + 1}`}</span>
@@ -447,13 +495,23 @@ export class EditorUI {
             </div>
             <h5 style="color:#8b949e;margin:8px 0;">Входные параметры </h5>
             <div class="table-wrapper"><table class="edit-table">
-                <thead><tr><th>Параметр</th><th>Источник</th><th>Трансформация</th><th></th></tr></thead>
+                <thead><tr>
+                    <th><span class="th-hint">Параметр внешнего запроса<span class="th-hint-icon th-hint-icon--start" data-tip="Входной параметр запроса">?</span></span></th>
+                    <th><span class="th-hint">Источник<span class="th-hint-icon" data-tip="Откуда берём значение">?</span></span></th>
+                    <th><span class="th-hint">Трансформация<span class="th-hint-icon" data-tip="Как преобразуем значение">?</span></span></th>
+                    <th></th>
+                </tr></thead>
                 <tbody>${inputParamsRows}</tbody>
             </table></div>
             <button class="add-row-btn" data-action="addInputParam" data-dep-index="${i}">+ Добавить параметр</button>
             <h5 style="color:#8b949e;margin:8px 0;">Параметры ответа </h5>
             <div class="table-wrapper"><table class="edit-table">
-                <thead><tr><th>Параметр</th><th>Используется в</th><th>Трансформация</th><th></th></tr></thead>
+                <thead><tr>
+                    <th><span class="th-hint">Параметр ответа внешнего запроса<span class="th-hint-icon th-hint-icon--start" data-tip="Выходной параметр запроса">?</span></span></th>
+                    <th><span class="th-hint">Используется в<span class="th-hint-icon" data-tip="Где применяется ответ">?</span></span></th>
+                    <th><span class="th-hint">Трансформация<span class="th-hint-icon" data-tip="Как преобразуем значение">?</span></span></th>
+                    <th></th>
+                </tr></thead>
                 <tbody>${outputFieldsRows}</tbody>
             </table></div>
             <button class="add-row-btn" data-action="addOutputField" data-dep-index="${i}">+ Добавить параметр</button>
@@ -477,7 +535,7 @@ export class EditorUI {
             : `<div class="info-note"><span class="info-note-icon">🔴</span><span>Примечания.</span></div>`;
         return `${note}
             <textarea class="block-editor highlight-required" data-bind="parsedData.notes" 
-                placeholder="- Edge cases..." 
+                placeholder="- Примечания..." 
                 style="min-height:150px;">${DOMHelpers.escape(this.parsedData.notes)}</textarea>`;
     }
 

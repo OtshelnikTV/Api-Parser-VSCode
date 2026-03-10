@@ -9,11 +9,10 @@ import { RequestSelectorUI } from './ui/RequestSelectorUI.js';
 import { MethodSelectorUI } from './ui/MethodSelectorUI.js';
 import { EditorUI } from './ui/EditorUI.js';
 import { DOMHelpers } from './utils/DOMHelpers.js';
+import { ConfirmDialog } from './utils/ConfirmDialog.js';
 import { LoadingOverlay } from './utils/LoadingOverlay.js';
 import { NotificationService } from './utils/NotificationService.js';
 import themeSwitcher from './utils/ThemeSwitcher.js';
-
-console.log('[API Parser] app.js module loaded, all imports successful');
 
 /**
  * Главный класс приложения - координирует работу всех компонентов
@@ -130,6 +129,11 @@ export class App {
             if (target.matches('[data-bind]')) {
                 this.handleDataBinding(target);
             }
+            DOMHelpers.updateCellFilled(e.target);
+        });
+
+        document.addEventListener('input', (e) => {
+            DOMHelpers.updateCellFilled(e.target);
         });
 
         // Обработка кнопок действий
@@ -295,6 +299,18 @@ export class App {
                 break;
             }
 
+            case 'insertInputParam': {
+                const depIndex = parseInt(element.dataset.depIndex);
+                const paramIndex = parseInt(element.dataset.paramIndex);
+                const dep = this.parsedData.dependencies[depIndex];
+                if (dep && Array.isArray(dep.inputParams)) {
+                    dep.inputParams.splice(paramIndex + 1, 0, { param: '', source: '', transform: '' });
+                    this.editorUI.render();
+                    this.editorUI.updateUnfilledCount();
+                }
+                break;
+            }
+
             case 'removeInputParam': {
                 const depIndex = parseInt(element.dataset.depIndex);
                 const paramIndex = parseInt(element.dataset.paramIndex);
@@ -320,6 +336,18 @@ export class App {
                             : [];
                     }
                     dep.outputFields.push({ field: '', usedIn: '', transform: '' });
+                    this.editorUI.render();
+                    this.editorUI.updateUnfilledCount();
+                }
+                break;
+            }
+
+            case 'insertOutputField': {
+                const depIndex = parseInt(element.dataset.depIndex);
+                const fieldIndex = parseInt(element.dataset.fieldIndex);
+                const dep = this.parsedData.dependencies[depIndex];
+                if (dep && Array.isArray(dep.outputFields)) {
+                    dep.outputFields.splice(fieldIndex + 1, 0, { field: '', usedIn: '', transform: '' });
                     this.editorUI.render();
                     this.editorUI.updateUnfilledCount();
                 }
@@ -417,7 +445,7 @@ export class App {
         // if markdown already exists, ask before overwrite
         const fileExists = await this.fileService.fileExists(serverPath);
         if (fileExists) {
-            const yes = confirm(`Файл ${fileName} уже существует. Перезаписать?`);
+            const yes = await ConfirmDialog.show(`Файл ${fileName} уже существует. Перезаписать?`);
             if (!yes) return;
         }
 
@@ -434,19 +462,11 @@ export class App {
 
 // Запуск приложения при загрузке DOM
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[API Parser] DOMContentLoaded event fired');
-    try {
-        const app = new App();
-        console.log('[API Parser] App instance created');
-        app.init();
-        console.log('[API Parser] App initialized');
-        
-        // Initialize server controls
-        initServerControls();
-        console.log('[API Parser] Server controls initialized');
-    } catch (error) {
-        console.error('[API Parser] Error during initialization:', error);
-    }
+    const app = new App();
+    app.init();
+    
+    // Initialize server controls
+    initServerControls();
 });
 
 /**
@@ -485,3 +505,4 @@ function initServerControls() {
     // Initialize status
     updateStatus();
 }
+
