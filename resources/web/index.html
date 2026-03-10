@@ -162,6 +162,20 @@
         </div>
     </div>
 </div>
+
+<!-- CONFIRM DIALOG MODAL -->
+<div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 450px;">
+        <span class="modal-icon">⚠️</span>
+        <h2>Подтверждение</h2>
+        <p id="confirm-message" style="font-size: 15px; color: var(--text-primary); margin: 16px 0 24px 0;"></p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn" id="confirm-no">Отмена</button>
+            <button class="btn btn-primary" id="confirm-yes">Да</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/lib/mermaid.min.js" 
         onerror="console.error('failed to load mermaid.min.js');" 
         onload="console.log('mermaid.min.js loaded');"></script>
