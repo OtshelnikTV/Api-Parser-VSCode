@@ -2,7 +2,7 @@
   "name": "api-parser-vscode",
   "displayName": "API Parser",
   "description": "VS Code port of IntelliJ YAML‑docs widget for parsing and visualizing API documentation",
-  "version": "1.0.0",
+  "version": "1.0.8",
   "publisher": "ChikleevB",
   "categories": ["Other", "Visualization"],
   "keywords": ["yaml", "api", "documentation", "parser", "swagger", "openapi"],
